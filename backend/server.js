@@ -158,8 +158,13 @@ app.get('/api/dreams', authenticateToken, (req, res) => {
 
 app.post('/api/dreams', authenticateToken, (req, res) => {
   const { content, lucidity, date, emotionType, emotionIntensity } = req.body;
-  if (!content || !lucidity || !date || !emotionType || !emotionIntensity) {
+  if (!content || !lucidity || !date || !emotionType || emotionIntensity === undefined || emotionIntensity === null || emotionIntensity === '') {
     return res.status(400).json({ error: '内容、清醒度、日期、情绪类型和情绪强度必填' });
+  }
+
+  const parsedIntensity = parseInt(emotionIntensity, 10);
+  if (isNaN(parsedIntensity) || parsedIntensity < 1 || parsedIntensity > 5) {
+    return res.status(400).json({ error: '情绪强度必须是1到5之间的有效数字' });
   }
 
   const dreams = readJSON(DREAMS_FILE);
@@ -169,7 +174,7 @@ app.post('/api/dreams', authenticateToken, (req, res) => {
     content,
     lucidity: parseInt(lucidity),
     emotionType,
-    emotionIntensity: parseInt(emotionIntensity),
+    emotionIntensity: parsedIntensity,
     date
   };
 

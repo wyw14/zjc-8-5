@@ -197,6 +197,11 @@ createApp({
         alert('请选择情绪类型');
         return;
       }
+      const intensity = parseInt(newDream.value.emotionIntensity, 10);
+      if (isNaN(intensity) || intensity < 1 || intensity > 5) {
+        alert('情绪强度必须是1到5之间的有效数字');
+        return;
+      }
 
       try {
         await apiRequest('/dreams', {
