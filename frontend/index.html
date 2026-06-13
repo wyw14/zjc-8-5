@@ -64,8 +64,33 @@
             <div class="stat-label">平均清醒度</div>
           </div>
           <div class="stat-card">
+            <div class="stat-number">{{ emotionStats.avgEmotionIntensity }}</div>
+            <div class="stat-label">平均情绪强度</div>
+          </div>
+          <div class="stat-card">
             <div class="stat-number">{{ dreams.length }}</div>
             <div class="stat-label">总记录数</div>
+          </div>
+        </div>
+
+        <div class="card emotion-stats-card" v-if="emotionStats.emotionDistribution.length > 0">
+          <h2>🎭 情绪分布</h2>
+          <div class="emotion-bars">
+            <div
+              v-for="item in emotionStats.emotionDistribution"
+              :key="item.type"
+              class="emotion-bar-row"
+            >
+              <span class="emotion-bar-label" :style="{ color: getEmotionColor(item.type) }">{{ item.type }}</span>
+              <div class="emotion-bar-track">
+                <div
+                  class="emotion-bar-fill"
+                  :style="{ width: item.percentage + '%', background: getEmotionColor(item.type) }"
+                ></div>
+              </div>
+              <span class="emotion-bar-percent">{{ item.percentage }}%</span>
+              <span class="emotion-bar-count">{{ item.count }}条</span>
+            </div>
           </div>
         </div>
 
@@ -106,6 +131,31 @@
               </div>
             </div>
             <div class="form-group">
+              <label>醒来后的情绪</label>
+              <div class="emotion-type-selector">
+                <span
+                  v-for="etype in emotionTypes"
+                  :key="etype"
+                  class="emotion-chip"
+                  :class="{ active: newDream.emotionType === etype }"
+                  :style="newDream.emotionType === etype ? { background: getEmotionColor(etype), color: '#1a1a2e' } : {}"
+                  @click="newDream.emotionType = etype"
+                >{{ etype }}</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>情绪强度</label>
+              <div class="star-rating">
+                <span
+                  v-for="n in 5"
+                  :key="n"
+                  class="star big emotion-star"
+                  :class="{ active: n <= newDream.emotionIntensity }"
+                  @click="newDream.emotionIntensity = n"
+                >❤</span>
+              </div>
+            </div>
+            <div class="form-group">
               <label>梦境内容</label>
               <textarea v-model="newDream.content" rows="5" placeholder="描述你的梦境..."></textarea>
             </div>
@@ -114,17 +164,36 @@
         </div>
 
         <div class="card">
-          <h2>📚 梦境列表</h2>
+          <div class="dream-list-header">
+            <h2>📚 梦境列表</h2>
+            <div class="emotion-filter">
+              <label>按情绪筛选：</label>
+              <select v-model="selectedEmotionFilter" @change="onEmotionFilterChange">
+                <option value="">全部</option>
+                <option v-for="etype in emotionTypes" :key="etype" :value="etype">{{ etype }}</option>
+              </select>
+            </div>
+          </div>
           <div v-if="dreams.length === 0" class="empty-dream">还没有记录梦境</div>
           <div v-else class="dream-list">
             <div v-for="dream in dreams" :key="dream.id" class="dream-item">
               <div class="dream-header">
                 <span class="dream-date">{{ dream.date }}</span>
-                <span class="dream-lucidity">
-                  <span v-for="n in 5" :key="n" class="star">{{ n <= dream.lucidity ? '★' : '☆' }}</span>
-                </span>
+                <div class="dream-header-tags">
+                  <span
+                    v-if="dream.emotionType"
+                    class="emotion-tag"
+                    :style="{ background: getEmotionColor(dream.emotionType), color: '#1a1a2e' }"
+                  >{{ dream.emotionType }}</span>
+                  <span class="dream-lucidity">
+                    <span v-for="n in 5" :key="n" class="star">{{ n <= dream.lucidity ? '★' : '☆' }}</span>
+                  </span>
+                </div>
               </div>
               <div class="dream-text">{{ dream.content }}</div>
+              <div v-if="dream.emotionIntensity" class="dream-emotion-intensity">
+                情绪强度: <span v-for="n in 5" :key="n" class="emotion-intensity-dot" :class="{ active: n <= dream.emotionIntensity }">❤</span>
+              </div>
             </div>
           </div>
         </div>

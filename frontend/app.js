@@ -1,6 +1,6 @@
 const { createApp, ref, onMounted, computed } = Vue;
 
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = 'http://localhost:3105/api';
 
 createApp({
   setup() {
@@ -15,6 +15,10 @@ createApp({
     const dreams = ref([]);
     const randomDream = ref(null);
     const monthlyStats = ref({ count: 0, avgLucidity: 0 });
+    const emotionStats = ref({ total: 0, emotionDistribution: [], avgEmotionIntensity: 0 });
+    const selectedEmotionFilter = ref('');
+
+    const emotionTypes = ['快乐', '悲伤', '恐惧', '惊奇', '平静', '焦虑', '温暖'];
 
     const now = new Date();
     const selectedYear = ref(now.getFullYear());
@@ -31,6 +35,8 @@ createApp({
     const newDream = ref({
       content: '',
       lucidity: 3,
+      emotionType: '',
+      emotionIntensity: 3,
       date: new Date().toISOString().split('T')[0]
     });
 
@@ -129,7 +135,11 @@ createApp({
 
     async function fetchDreams() {
       try {
-        const data = await apiRequest('/dreams');
+        let url = '/dreams';
+        if (selectedEmotionFilter.value) {
+          url += `?emotion=${encodeURIComponent(selectedEmotionFilter.value)}`;
+        }
+        const data = await apiRequest(url);
         dreams.value = data;
       } catch (e) {
         console.error('获取梦境列表失败', e);
@@ -160,13 +170,31 @@ createApp({
       }
     }
 
+    async function fetchEmotionStats() {
+      try {
+        const data = await apiRequest(`/stats/emotion?year=${selectedYear.value}&month=${selectedMonth.value}`);
+        emotionStats.value = data;
+      } catch (e) {
+        console.error('获取情绪统计失败', e);
+      }
+    }
+
     function onMonthChange() {
       fetchMonthlyStats();
+      fetchEmotionStats();
+    }
+
+    function onEmotionFilterChange() {
+      fetchDreams();
     }
 
     async function addDream() {
       if (!newDream.value.content.trim()) {
         alert('请输入梦境内容');
+        return;
+      }
+      if (!newDream.value.emotionType) {
+        alert('请选择情绪类型');
         return;
       }
 
@@ -179,6 +207,8 @@ createApp({
         newDream.value = {
           content: '',
           lucidity: 3,
+          emotionType: '',
+          emotionIntensity: 3,
           date: new Date().toISOString().split('T')[0]
         };
 
@@ -191,6 +221,7 @@ createApp({
     function loadData() {
       fetchDreams();
       fetchMonthlyStats();
+      fetchEmotionStats();
     }
 
     function createWhiteNoise() {
@@ -250,6 +281,19 @@ createApp({
       isPlaying.value = false;
     }
 
+    function getEmotionColor(type) {
+      const colors = {
+        '快乐': '#fbbf24',
+        '悲伤': '#60a5fa',
+        '恐惧': '#a78bfa',
+        '惊奇': '#f472b6',
+        '平静': '#34d399',
+        '焦虑': '#fb923c',
+        '温暖': '#f87171'
+      };
+      return colors[type] || '#94a3b8';
+    }
+
     onMounted(() => {
       loadUser();
       if (isLoggedIn.value) {
@@ -268,6 +312,9 @@ createApp({
       dreams,
       randomDream,
       monthlyStats,
+      emotionStats,
+      emotionTypes,
+      selectedEmotionFilter,
       newDream,
       fetchRandomDream,
       addDream,
@@ -276,7 +323,9 @@ createApp({
       selectedYear,
       selectedMonth,
       yearOptions,
-      onMonthChange
+      onMonthChange,
+      onEmotionFilterChange,
+      getEmotionColor
     };
   }
 }).mount('#app');

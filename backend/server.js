@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-const PORT = 3001;
+const PORT = 3105;
 const JWT_SECRET = 'dream-secret-key-2024';
 
 const DATA_DIR = path.join(__dirname, 'data');
@@ -60,6 +60,8 @@ function initDreams() {
         userId: 1,
         content: '在一片紫色的云海中漂浮，远处有一座发光的水晶城堡，城堡的塔尖直插云霄。',
         lucidity: 5,
+        emotionType: '惊奇',
+        emotionIntensity: 4,
         date: '2026-06-01'
       },
       {
@@ -67,6 +69,8 @@ function initDreams() {
         userId: 1,
         content: '梦见自己变成了一只鸟，在城市上空飞翔，下面的人群像蚂蚁一样小。',
         lucidity: 3,
+        emotionType: '快乐',
+        emotionIntensity: 5,
         date: '2026-06-05'
       },
       {
@@ -74,6 +78,8 @@ function initDreams() {
         userId: 1,
         content: '在海底漫步，周围是五颜六色的珊瑚和会发光的鱼，我可以在水中呼吸。',
         lucidity: 4,
+        emotionType: '平静',
+        emotionIntensity: 3,
         date: '2026-06-10'
       },
       {
@@ -81,6 +87,8 @@ function initDreams() {
         userId: 1,
         content: '梦见了很久没见的老朋友，我们在一片向日葵花田里聊天。',
         lucidity: 2,
+        emotionType: '温暖',
+        emotionIntensity: 4,
         date: '2026-05-20'
       },
       {
@@ -88,6 +96,8 @@ function initDreams() {
         userId: 1,
         content: '在太空里行走，地球就在脚下，星星近得伸手就能摸到。',
         lucidity: 5,
+        emotionType: '惊奇',
+        emotionIntensity: 5,
         date: '2026-05-15'
       },
       {
@@ -95,6 +105,8 @@ function initDreams() {
         userId: 1,
         content: '梦见自己在图书馆里，每本书打开都会飞出不同颜色的蝴蝶。',
         lucidity: 4,
+        emotionType: '快乐',
+        emotionIntensity: 3,
         date: '2026-06-12'
       }
     ];
@@ -136,14 +148,18 @@ app.post('/api/login', (req, res) => {
 });
 
 app.get('/api/dreams', authenticateToken, (req, res) => {
-  const dreams = readJSON(DREAMS_FILE).filter(d => d.userId === req.user.id);
+  const { emotion } = req.query;
+  let dreams = readJSON(DREAMS_FILE).filter(d => d.userId === req.user.id);
+  if (emotion) {
+    dreams = dreams.filter(d => d.emotionType === emotion);
+  }
   res.json(dreams.sort((a, b) => new Date(b.date) - new Date(a.date)));
 });
 
 app.post('/api/dreams', authenticateToken, (req, res) => {
-  const { content, lucidity, date } = req.body;
-  if (!content || !lucidity || !date) {
-    return res.status(400).json({ error: '内容、清醒度和日期必填' });
+  const { content, lucidity, date, emotionType, emotionIntensity } = req.body;
+  if (!content || !lucidity || !date || !emotionType || !emotionIntensity) {
+    return res.status(400).json({ error: '内容、清醒度、日期、情绪类型和情绪强度必填' });
   }
 
   const dreams = readJSON(DREAMS_FILE);
@@ -152,6 +168,8 @@ app.post('/api/dreams', authenticateToken, (req, res) => {
     userId: req.user.id,
     content,
     lucidity: parseInt(lucidity),
+    emotionType,
+    emotionIntensity: parseInt(emotionIntensity),
     date
   };
 
@@ -191,6 +209,44 @@ app.get('/api/stats/monthly', authenticateToken, (req, res) => {
     month: targetMonth,
     count,
     avgLucidity: parseFloat(avgLucidity)
+  });
+});
+
+app.get('/api/stats/emotion', authenticateToken, (req, res) => {
+  const { month, year } = req.query;
+  const now = new Date();
+  const targetYear = year ? parseInt(year) : now.getFullYear();
+  const targetMonth = month ? parseInt(month) : now.getMonth() + 1;
+
+  const userDreams = readJSON(DREAMS_FILE).filter(d => {
+    if (d.userId !== req.user.id) return false;
+    const dDate = new Date(d.date);
+    return dDate.getFullYear() === targetYear && (dDate.getMonth() + 1) === targetMonth;
+  });
+
+  const emotionCounts = {};
+  let totalIntensity = 0;
+  userDreams.forEach(d => {
+    const type = d.emotionType || '未记录';
+    emotionCounts[type] = (emotionCounts[type] || 0) + 1;
+    totalIntensity += (d.emotionIntensity || 0);
+  });
+
+  const total = userDreams.length;
+  const emotionDistribution = Object.entries(emotionCounts).map(([type, count]) => ({
+    type,
+    count,
+    percentage: total > 0 ? parseFloat(((count / total) * 100).toFixed(1)) : 0
+  }));
+
+  const avgEmotionIntensity = total > 0 ? parseFloat((totalIntensity / total).toFixed(1)) : 0;
+
+  res.json({
+    year: targetYear,
+    month: targetMonth,
+    total,
+    emotionDistribution,
+    avgEmotionIntensity
   });
 });
 
